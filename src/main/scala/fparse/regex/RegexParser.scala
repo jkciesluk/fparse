@@ -3,11 +3,11 @@ package fparse.regex
 import fparse.string.StringParsers
 import fparse.Parsers
 
-object RegexAstParser extends StringParsers {
+object RegexAstParser extends StringParsers[Option] {
   private val parseStart: Parser[Regex] = Parser('^').map(_ => Start)
   private val parseEnd: Parser[Regex] = Parser('$').map(_ => End)
 
-  private val escapeChars = Set('$', '\\', '.', '+', '*', '?', '^', '/', ']', '[', '(', ')', '{', '}')
+  private val escapeChars = Set('$', '\\', '.', '+', '*', '?', '^', '|', '/', ']', '[', '(', ')', '{', '}')
   private val parseEscapeChar = for {
     _ <- Parser('\\')
     c <- anyOf(escapeChars)

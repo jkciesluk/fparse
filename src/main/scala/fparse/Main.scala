@@ -5,7 +5,7 @@ import cats.implicits._
 import fparse.string.StringParsers
 import fparse.regex.RegexAstParser
 
-object JParser extends StringParsers {
+object JParser extends StringParsers[Option] {
 
   trait JSON
   case class JArray(elems: List[JSON]) extends JSON
@@ -125,7 +125,7 @@ object Main extends App {
   val input2 = "[100, 200]"
 
   val regexInput = "^(ab)|c+?|[AEIOU]*$"
-  pprint.log(RegexAstParser.parseRegex(RegexAstParser.makeInput(regexInput)))
-  // val json = JParser.jsonParser(JParser.makeInput(input))
-  // pprint.log(json)
+  // pprint.log(RegexAstParser.parseRegex(RegexAstParser.makeInput(regexInput)))
+  val json = JParser.jsonParser(JParser.makeInput(input))
+  pprint.log(json)
 }

@@ -2,8 +2,11 @@ package fparse.string
 
 import fparse.reader.CharReader
 import fparse.Parsers
+import cats.Monad
+import cats.Alternative
 
-trait StringParsers extends Parsers {
+
+trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
   type Elem = Char
   // type Input = CharReader
   val whitespaces = Set(' ', '\t', '\r', '\n')
@@ -23,14 +26,17 @@ trait StringParsers extends Parsers {
   def int: Parser[Int] = {
     (opt(Parser('-')) ~ natural).map((minus, n) => minus.fold(n)(_ => -n))
   }
-  def int(i: Int): Parser[Int] =
-    int.filter(_ == i)
+  def int(i: Int): Parser[Int] = ???
+    // int.filter(_ == i)
 
   def double: Parser[Double] = for {
     n <- repeatedOne(digit)
     _ <- single('.')
     m <- repeatedOne(digit)
   } yield (n.mkString + '.' + m.mkString).toDouble
+
+  def word: Parser[String] = 
+    takeWhile(!whitespaces(_)).map(_.mkString)
 
   override def whitespace: Parser[List[Char]] = repeatedOne(anyOf(whitespaces))
 
