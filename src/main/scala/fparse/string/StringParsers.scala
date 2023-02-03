@@ -31,7 +31,7 @@ trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
 
   def double: Parser[Double] = for {
     n <- repeatedOne(digit)
-    _ <- single('.')
+    _ <- accept('.')
     m <- repeatedOne(digit)
   } yield (n.mkString + '.' + m.mkString).toDouble
 
@@ -42,7 +42,8 @@ trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
 
   override def optWhitespace: Parser[List[Char]] = repeated(anyOf(whitespaces))
 
-  override def withOptWhitespace[A](fa: Parser[A]) = between(optWhitespace, fa)
+  override def withOptWhitespace[A](fa: Parser[A]) = 
+    between(optWhitespace, fa)
 
 }
 

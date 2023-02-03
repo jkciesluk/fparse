@@ -15,7 +15,7 @@ class CharReader(source: String, val pos: StringPosition) extends InputReader[Ch
       if first == '\n' then moveLine()
       else moveColumn()
 
-  override def toString(): String = source.drop(offset)
+  override def toString(): String = s"Pos: $pos" + '\n' + source.drop(offset).take(10)
   private def withPos(p: StringPosition) = CharReader(source, p)
   private def moveLine(): CharReader =  withPos(pos.nextLine())
   private def moveColumn(): CharReader =  withPos(pos.nextColumn())

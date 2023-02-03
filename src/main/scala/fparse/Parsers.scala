@@ -49,8 +49,12 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
       nres match
         case s @ Success(result) if result.nonEmpty => s
-        case Success(_)                             => Failure(ParseError.Fail)
-        case ns                                     => ns
+        case Success(_) =>
+          Failure(
+            ParseError.Fail,
+            ???
+          ) // niech iter zbiera ostatni failure, tu bedzie potrzebny
+        case ns => ns
 
     def map[B](fn: A => B): ParseResult[B] =
       Success(Monad[F].map(res) { case (a, rest) => (fn(a), rest) })
@@ -59,17 +63,21 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
       fa match
         case Success(res0) =>
           Success(res.combineK(res0.asInstanceOf[F[(A, Input)]]))
-        case Error(msg)   => this
-        case Failure(err) => this
+        case Error(msg)        => this
+        case Failure(err, inp) => this
 
     def filter(fn: A => Boolean): ParseResult[A] =
       val res0 = res.filter((a, _) => fn(a))
-      if res0.isEmpty then Failure(ParseError.Fail)
+      if res0.isEmpty then
+        val inp = res.find(_ => true).get._2
+        Failure(ParseError.Fail, inp)
       else Success(res0)
 
     def mapFilter[B](fn: A => Option[B]): ParseResult[B] =
       val res0 = res.mapFilter((a, rest) => fn(a).map(b => (b, rest)))
-      if res0.isEmpty then Failure(ParseError.Fail)
+      if res0.isEmpty then
+        val inp = res.find(_ => true).get._2
+        Failure(ParseError.Fail, inp)
       else Success(res0)
 
   }
@@ -92,7 +100,7 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     def append[A >: Nothing](fa: ParseResult[A]): ParseResult[A] = this
   }
 
-  case class Failure(err: ParseError) extends NoSuccess(err) {
+  case class Failure(err: ParseError, inp: Input) extends NoSuccess(err) {
     def append[A >: Nothing](fa: ParseResult[A]): ParseResult[A] = fa
   }
 
@@ -142,7 +150,8 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     def repeated: Parser[List[A]] = Parser(inp =>
       parse(inp) match
         case e @ Error(msg) => e
-        case Failure(err)   => Success(Monad[F].pure((List.empty[A], inp)))
+        case Failure(err, inp) =>
+          Success(Monad[F].pure((List.empty[A], inp)))
         case s @ Success(res) =>
           val nextRes = s.flatMapNext((a, rest) => repeated.map(a :: _)(rest))
           // val app = s.map(a => List(a))
@@ -160,8 +169,8 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
     def repeatedLzy: Parser[List[A]] = Parser(inp =>
       parse(inp) match
-        case e @ Error(msg) => e
-        case Failure(err)   => Success(Monad[F].pure((List.empty[A], inp)))
+        case e @ Error(msg)    => e
+        case Failure(err, inp) => Success(Monad[F].pure((List.empty[A], inp)))
         case s @ Success(res) =>
           val nextRes =
             s.flatMapNext((a, rest) => repeatedLzy.map(a :: _)(rest))
@@ -184,8 +193,8 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
     def repeatedMaxN(n: Int): Parser[List[A]] = Parser(inp =>
       parse(inp) match
-        case e @ Error(msg) => e
-        case Failure(err)   => Success(Monad[F].pure((List.empty[A], inp)))
+        case e @ Error(msg)    => e
+        case Failure(err, inp) => Success(Monad[F].pure((List.empty[A], inp)))
         case s @ Success(res) =>
           if (n <= 0) Success(Monad[F].pure((List.empty[A], inp)))
           else
@@ -204,20 +213,24 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     }
 
     def withOptWhitespace = between(optWhitespace, this)
-
+    def debug(msg: String = "") = Parser(inp =>
+      pprint.log(inp)
+      if msg.nonEmpty then pprint.log(msg)
+      parse(inp)
+    )
   }
 
   def elem: Parser[Elem] = Parser(inp =>
-    if inp.isEmpty then Failure(ParseError.UnexpectedEof)
+    if inp.isEmpty then Failure(ParseError.UnexpectedEof, inp)
     else Success(Monad[F].pure((inp.first, inp.next))),
   )
 
   def eof: Parser[Unit] = Parser(inp =>
     if inp.isEmpty then Success(Monad[F].pure(((), inp)))
-    else Failure(ParseError.ExpectedEof)
+    else Failure(ParseError.ExpectedEof, inp)
   )
   val Rip: Parser[Nothing] = Parser(_ => Error("Rip"))
-  val Fail: Parser[Nothing] = Parser(_ => Failure(ParseError.Fail))
+  val Fail: Parser[Nothing] = Parser(inp => Failure(ParseError.Fail, inp))
   def ap[A, B](ff: Parser[A => B])(fa: Parser[A]): Parser[B] =
     ff.flatMap(ab => fa.map(ab(_)))
   def <*>[A, B](ff: Parser[A => B])(fa: Parser[A]): Parser[B] = ap(ff)(fa)
@@ -256,7 +269,7 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     fa.flatMap(fn)
 
   def empty[A]: Parser[A] =
-    Parser(inp => Failure(ParseError.Fail))
+    Parser(inp => Failure(ParseError.Fail, inp))
 
   def sequence[A](ps: List[Parser[A]]): Parser[List[A]] = {
     def cons(a: A)(xs: List[A]) = (a :: xs)
@@ -292,33 +305,37 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
   )(n: Int, m: Option[Int] = None): Parser[List[A]] =
     fa.repeatedMinN(n, m)
 
-  def single(e: Elem): Parser[Elem] =
-    elem.filter(_ == e)
-
   def accept(e: Elem): Parser[Elem] =
     Parser { inp =>
-      if (inp.isEmpty) Failure(ParseError.UnexpectedEof)
+      if (inp.isEmpty) Failure(ParseError.UnexpectedEof, inp)
       else if (inp.first == e) Success(Monad[F].pure((e, inp.next)))
-      else Failure(ParseError.UnexpectedChar(inp.first))
+      else Failure(ParseError.UnexpectedChar(inp.first), inp)
+    }
+
+  def accept(fn: Elem => Boolean): Parser[Elem] =
+    Parser { inp =>
+      if (inp.isEmpty) Failure(ParseError.UnexpectedEof, inp)
+      else if (fn(inp.first)) Success(Monad[F].pure((inp.first, inp.next)))
+      else Failure(ParseError.UnexpectedChar(inp.first), inp)
     }
 
   def anyOf(es: Set[Elem]): Parser[Elem] =
-    oneOf(es.map(single))
+    oneOf(es.map(accept))
 
   def anyOf(es: Seq[Elem]): Parser[Elem] =
-    oneOf(es.map(single))
+    oneOf(es.map(accept))
 
   def anyExcept(es: Set[Elem]): Parser[Elem] =
-    elem.filter(!es.contains(_))
+    accept(!es.contains(_))
 
   def anyExcept(e: Elem): Parser[Elem] =
-    elem.filter(e != _)
+    accept(e != _)
 
   def anyExcept(es: Seq[Elem]): Parser[Elem] =
-    elem.filter(!es.contains(_))
+    accept(!es.contains(_))
 
   def takeWhile(fn: Elem => Boolean): Parser[List[Elem]] = {
-    repeated(elem.filter(fn))
+    repeated(accept(fn))
   }
 
   def opt[A](fa: Parser[A]): Parser[Option[A]] =
@@ -369,7 +386,8 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
       override def functor: Functor[Parsers.this.Parser] = this
 
-      override def empty[A]: Parser[A] = Parser(inp => Failure(ParseError.Fail))
+      override def empty[A]: Parser[A] =
+        Parser(inp => Failure(ParseError.Fail, inp))
 
       override def combineK[A](x: Parser[A], y: Parser[A]): Parser[A] = oneOf(
         x :: y :: Nil

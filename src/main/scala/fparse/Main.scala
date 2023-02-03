@@ -30,18 +30,18 @@ object JParser extends StringParsers[Option] {
 
 
   def jArrayParser: Parser[JArray] = for {
-    _ <- Parser('[').withOptWhitespace
+    _ <- withOptWhitespace(Parser('['))
     elems <- separated(jsonParser, sepParser(','))
-    _ <- Parser(']').withOptWhitespace
+    _ <- withOptWhitespace(Parser(']'))
   } yield JArray(elems)
 
 
   
 
   def jObjectParser: Parser[JObject] = for {
-    _ <- Parser('{').withOptWhitespace
+    _ <- withOptWhitespace(Parser('{'))
     fields <- separated(jFieldParser, sepParser(','))
-    _ <- Parser('}').withOptWhitespace
+    _ <- withOptWhitespace(Parser('}'))
   } yield JObject(fields)
 
   def jsonParser: Parser[JSON] =
@@ -125,7 +125,7 @@ object Main extends App {
   val input2 = "[100, 200]"
 
   val regexInput = "^(ab)|c+?|[AEIOU]*$"
-  // pprint.log(RegexAstParser.parseRegex(RegexAstParser.makeInput(regexInput)))
-  val json = JParser.jsonParser(JParser.makeInput(input))
-  pprint.log(json)
+  pprint.log(RegexAstParser.parseRegex(RegexAstParser.makeInput(regexInput)))
+  // val json = JParser.jsonParser(JParser.makeInput(input))
+  // pprint.log(json)
 }
