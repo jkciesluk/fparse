@@ -34,7 +34,10 @@ trait FromRegexParsers extends StringParsers[List] {
       case TimesRange(from, to, r) => repeatedMinNLzy(buildParser(r))(from, to).map(_.mkString)
   }
   
-  private def buildRegex(inp: Input) = RegexAstParser.parseRegex.run(inp)
+  private def buildRegex(inp: Input) = 
+    val a = RegexAstParser.parseRegex.run(inp)
+    pprint.log(a)
+    a
 
   def fromRegex(inp: Input): Parser[String] = buildParser(buildRegex(inp))
 }

@@ -126,9 +126,9 @@ object Main extends App {
   val input2 = "[100, 200]"
 
   val regexInput = "^(ab)|c+?|[AEIOU]*$"
+  val regexp = RegexAstParser.makeInput("a+ba")
   pprint.log(RegexAstParser.parseRegex.run(RegexAstParser.makeInput(regexInput)))
-
-  pprint.log(StdStringParser.fromRegex(RegexAstParser.makeInput("a+a")).run(RegexAstParser.makeInput("aaa")))
+  pprint.log(StdStringParser.fromRegex(regexp)(RegexAstParser.makeInput("aabab")))
   // val json = JParser.jsonParser(JParser.makeInput(input))
   // pprint.log(json)
 }
