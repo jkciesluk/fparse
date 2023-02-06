@@ -24,7 +24,6 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     case Failure(msg: String) extends ParseError
     case Rip extends ParseError
 
-  // type ParseResult[A] = Either[ParseError, (A, Input)]
   sealed trait ParseResult[+A] {
     def flatMapNext[B](fn: A => Input => ParseResult[B]): ParseResult[B]
     def flatMapNext[B](fn: (A, Input) => ParseResult[B]): ParseResult[B] =
@@ -201,7 +200,7 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
             val nextRes =
               s.flatMapNext((a, rest) => repeatedMaxN(n - 1).map(a :: _)(rest))
             // val app = s.map(a => List(a))
-            Success(Monad[F].pure((List.empty[A], inp))).append(nextRes)
+            nextRes.append(Success(Monad[F].pure((List.empty[A], inp))))
     )
 
     def repeatedMinN(n: Int, m: Option[Int] = None): Parser[List[A]] = {
@@ -212,12 +211,39 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
       (parser0 ~ parser1).map(_ ++ _)
     }
 
+    def repeatedMaxNLzy(n: Int): Parser[List[A]] = Parser(inp =>
+      parse(inp) match
+        case e @ Error(msg)    => e
+        case Failure(err, inp) => Success(Monad[F].pure((List.empty[A], inp)))
+        case s @ Success(res) =>
+          if (n <= 0) Success(Monad[F].pure((List.empty[A], inp)))
+          else
+            val nextRes =
+              s.flatMapNext((a, rest) => repeatedMaxN(n - 1).map(a :: _)(rest))
+            // val app = s.map(a => List(a))
+            Success(Monad[F].pure((List.empty[A], inp))).append(nextRes)
+    )
+
+    def repeatedMinNLzy(n: Int, m: Option[Int] = None): Parser[List[A]] = {
+      val parser0 = repeatedN(n)
+      val parser1 = m match
+        case None        => repeated
+        case Some(value) => repeatedMaxNLzy(value)
+      (parser0 ~ parser1).map(_ ++ _)
+    }
+
     def withOptWhitespace = between(optWhitespace, this)
     def debug(msg: String = "") = Parser(inp =>
       pprint.log(inp)
       if msg.nonEmpty then pprint.log(msg)
       parse(inp)
     )
+
+    def run(inp: Input): A = (this <* eof).parse(inp) match
+      case Success(res)      => res.find(_ => true).get._1
+      case Error(msg)        => throw Exception(msg)
+      case Failure(err, inp) => throw Exception(err.toString())
+
   }
 
   def elem: Parser[Elem] = Parser(inp =>
@@ -304,6 +330,14 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
       fa: Parser[A]
   )(n: Int, m: Option[Int] = None): Parser[List[A]] =
     fa.repeatedMinN(n, m)
+
+  def repeatedMaxNLzy[A](fa: Parser[A])(n: Int): Parser[List[A]] =
+      fa.repeatedMaxNLzy(n)
+
+  def repeatedMinNLzy[A](
+      fa: Parser[A]
+  )(n: Int, m: Option[Int] = None): Parser[List[A]] =
+    fa.repeatedMinNLzy(n, m)
 
   def accept(e: Elem): Parser[Elem] =
     Parser { inp =>
