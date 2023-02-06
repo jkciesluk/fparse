@@ -12,7 +12,7 @@ trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
   val whitespaces = Set(' ', '\t', '\r', '\n')
   def makeInput(str: String) = CharReader.fromString(str)
 
-
+  
   // given Conversion[Char, Parser[Char]] = Parser.accept(_)
   // given Conversion[String, Parser[String]] with
     // def apply(str: String): Parser[String] = Parser.sequence(str.toList.map(Parser.accept)).map(_.mkString)
@@ -37,6 +37,9 @@ trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
 
   def word: Parser[String] = 
     takeWhile(!whitespaces(_)).map(_.mkString)
+  
+  def accept(w: String): Parser[String] = 
+    sequence(w.map(accept).toList).map(_.mkString)
 
   override def whitespace: Parser[List[Char]] = repeatedOne(anyOf(whitespaces))
 
@@ -44,6 +47,12 @@ trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
 
   override def withOptWhitespace[A](fa: Parser[A]) = 
     between(optWhitespace, fa)
+
+  def escapeChars: Set[Char]
+  def EscapeChar = for {
+    _ <- accept('\\')
+    c <- anyOf(escapeChars)
+  } yield c
 
 }
 

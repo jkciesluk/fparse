@@ -2,8 +2,8 @@ package fparse.regex
 
 import fparse.string.StringParsers
 
-trait FromRegexParsers extends StringParsers[List] {
-  private def buildParser(r: Regex): Parser[String] =
+object FromRegexParser extends StringParsers[List] {
+  def buildParser(r: Regex): Parser[String] =
     r match
       case Group(r)         => buildParser(r)
       case AnyOf(xs)        => oneOf(xs.map(buildParser))
@@ -34,10 +34,11 @@ trait FromRegexParsers extends StringParsers[List] {
       case TimesRange(from, to, r) => repeatedMinNLzy(buildParser(r))(from, to).map(_.mkString)
   }
   
-  private def buildRegex(inp: Input) = 
-    val a = RegexAstParser.parseRegex.run(inp)
-    pprint.log(a)
-    a
+  def buildRegex(inp: Input): Regex = 
+    RegexAstParser.parseRegex.run(inp)
+  
+  def buildRegex(inp: String): Regex = 
+      RegexAstParser.parseRegex.run(RegexAstParser.makeInput(inp))
 
   def fromRegex(inp: Input): Parser[String] = buildParser(buildRegex(inp))
 }

@@ -16,15 +16,6 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
   type Elem
   type Input = InputReader[Elem]
 
-  enum ParseError:
-    case UnexpectedChar(e: Elem) extends ParseError
-    case FilterError(msg: String = "") extends ParseError
-    case ExpectedEof extends ParseError
-    case UnexpectedEof extends ParseError
-    case Fail extends ParseError
-    case Failure(msg: String) extends ParseError
-    case Rip extends ParseError
-
   sealed trait ParseResult[+A] {
     def flatMapNext[B](fn: A => Input => ParseResult[B]): ParseResult[B]
     def flatMapNext[B](fn: (A, Input) => ParseResult[B]): ParseResult[B] =
@@ -162,12 +153,12 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     def void: Parser[Unit] =
       Parser(inp => parse(inp).map(_ => ()))
 
-    def ~[B](that: Parser[B]): Parser[(A, B)] =
+    def ~[B](that: => Parser[B]): Parser[(A, B)] =
       Parser(inp =>
         parse(inp).flatMapNext((a, rest) => that(rest).map(b => (a, b)))
       )
 
-    def andThen[B](that: Parser[B]): Parser[(A, B)] = this ~ that
+    def andThen[B](that: => Parser[B]): Parser[(A, B)] = this ~ that
 
     def flatMap[B](fn: A => Parser[B]): Parser[B] =
       Parser(inp => parse(inp).flatMapNext((a, rest) => fn(a)(rest)))
@@ -175,11 +166,11 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     def >>=[B](fn: A => Parser[B]): Parser[B] = flatMap(fn)
     def >>[B](fb: => Parser[B]): Parser[B] = flatMap(_ => fb)
 
-    def *>[B](that: Parser[B]): Parser[B] = (this ~ that).map(_._2)
-    def <*[B](that: Parser[B]): Parser[A] = (this ~ that).map(_._1)
-    def orElse[A1 >: A](that: Parser[A1]): Parser[A1] =
+    def *>[B](that: => Parser[B]): Parser[B] = (this ~ that).map(_._2)
+    def <*[B](that: => Parser[B]): Parser[A] = (this ~ that).map(_._1)
+    def orElse[A1 >: A](that: => Parser[A1]): Parser[A1] =
       Parser(inp => parse(inp).append(that(inp)))
-    def <|>[A1 >: A](that: Parser[A1]): Parser[A1] = orElse(that)
+    def <|>[A1 >: A](that: => Parser[A1]): Parser[A1] = orElse(that)
 
     def repeated: Parser[List[A]] = Parser(inp =>
       parse(inp) match
@@ -298,7 +289,7 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
   val Fail: Parser[Nothing] = Parser(inp => Failure(ParseError.Fail, inp))
   def ap[A, B](ff: Parser[A => B])(fa: Parser[A]): Parser[B] =
     ff.flatMap(ab => fa.map(ab(_)))
-  def <*>[A, B](ff: Parser[A => B])(fa: Parser[A]): Parser[B] = ap(ff)(fa)
+  def <*>[A, B](ff: => Parser[A => B])(fa: Parser[A]): Parser[B] = ap(ff)(fa)
   def fail[A]: Parser[A] = Fail
   def rip[A]: Parser[A] = Rip
 
@@ -389,6 +380,13 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     Parser { inp =>
       if (inp.isEmpty) Failure(ParseError.UnexpectedEof, inp)
       else if (fn(inp.first)) Success.pure(inp.first, inp.next)
+      else Failure(ParseError.UnexpectedChar(inp.first), inp)
+    }
+
+  def accept[A](fn: PartialFunction[Elem, A]): Parser[A] =
+    Parser { inp =>
+      if (inp.isEmpty) Failure(ParseError.UnexpectedEof, inp)
+      else if (fn.isDefinedAt(inp.first)) Success.pure(fn(inp.first), inp.next)
       else Failure(ParseError.UnexpectedChar(inp.first), inp)
     }
 

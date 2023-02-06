@@ -4,7 +4,7 @@ import cats.implicits._
 
 import fparse.string.StringParsers
 import fparse.regex.RegexAstParser
-import fparse.string.StdStringParser
+import fparse.string.RegexParser
 
 object JParser extends StringParsers[Option] {
 
@@ -128,7 +128,7 @@ object Main extends App {
   val regexInput = "^(ab)|c+?|[AEIOU]*$"
   val regexp = RegexAstParser.makeInput("a+ba")
   pprint.log(RegexAstParser.parseRegex.run(RegexAstParser.makeInput(regexInput)))
-  pprint.log(StdStringParser.fromRegex(regexp)(RegexAstParser.makeInput("aabab")))
+  pprint.log(RegexParser.fromRegex(regexp)(RegexAstParser.makeInput("aabab")))
   // val json = JParser.jsonParser(JParser.makeInput(input))
   // pprint.log(json)
 }
