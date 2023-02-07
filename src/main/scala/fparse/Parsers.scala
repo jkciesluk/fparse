@@ -16,6 +16,10 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
   type Elem
   type Input = InputReader[Elem]
 
+  // NOTE: The design of `ParseResult` is inspired by https://github.com/scala/scala-parser-combinators
+  // Specifically `lastFailure` in `Success` was a great help to me.
+  // I couldn't (and didn't want to) use their implementations of any methods,
+  // because they don't support the F[_] type parameter
   sealed trait ParseResult[+A] {
     def flatMapNext[B](fn: A => Input => ParseResult[B]): ParseResult[B]
     def flatMapNext[B](fn: (A, Input) => ParseResult[B]): ParseResult[B] =
