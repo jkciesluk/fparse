@@ -13,7 +13,7 @@ case class Or(r1: Regex, r2: Regex) extends URegex
 case class Cat[A <: Regex](r1: Regex, r2: Regex) extends URegex
 case object End extends Regex
 case object Start extends Regex
-  
+
 sealed trait More extends QRegex
 case class Star(r: URegex) extends More
 case class Plus(r: URegex) extends More
@@ -34,7 +34,7 @@ case object Word extends CharClass
 case object Whitespace extends CharClass
 
 object Regex {
-  //TODO: add some assertions
+  // TODO: add some assertions
   def makeRange(a: Ch, b: Ch) =
     (a.c to b.c).toList.map(Ch(_))
 }

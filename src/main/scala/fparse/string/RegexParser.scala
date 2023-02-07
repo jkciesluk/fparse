@@ -3,7 +3,7 @@ package fparse.string
 import fparse.regex.FromRegexParser
 import fparse.reader.InputReader
 
-object RegexParser extends StringParsers[Option] {
+trait RegexParsers extends StringParsers[Option] {
   def fromRegex(inp: Input): Parser[String] =
     Parser { inp0 =>
       FromRegexParser.fromRegex(inp)(inp0) match
@@ -34,4 +34,7 @@ object RegexParser extends StringParsers[Option] {
     }
 
   def fromRegexMax(inp: String): Parser[String] = fromRegexMax(makeInput(inp))
+
 }
+
+object RegexParser extends RegexParsers

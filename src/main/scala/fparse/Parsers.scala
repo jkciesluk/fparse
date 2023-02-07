@@ -21,8 +21,12 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     def flatMapNext[B](fn: (A, Input) => ParseResult[B]): ParseResult[B] =
       flatMapNext(a => inp => fn(a, inp))
 
-    def filter(fn: A => Boolean, msg: String = ""): ParseResult[A]
-    def mapFilter[B](fn: A => Option[B], msg: String = ""): ParseResult[B]
+    def filter(fn: A => Boolean, pos: Input, msg: String = ""): ParseResult[A]
+    def mapFilter[B](
+        fn: A => Option[B],
+        pos: Input,
+        msg: String = ""
+    ): ParseResult[B]
 
     def map[B](fn: A => B): ParseResult[B]
     def append[B >: A](fa: ParseResult[B]): ParseResult[B]
@@ -58,18 +62,22 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
         case Error(msg, _)     => this
         case Failure(err, inp) => this
 
-    def filter(fn: A => Boolean, msg: String = ""): ParseResult[A] =
+    def filter(fn: A => Boolean, pos: Input, msg: String = ""): ParseResult[A] =
       val res0 = res.filter((a, _) => fn(a))
       if res0.isEmpty then
-        val inp = lastPos
-        Failure(ParseError.FilterError(msg), inp)
+        // val inp = lastPos
+        Failure(ParseError.FilterError(msg), pos)
       else Success(res0, lastFailure)
 
-    def mapFilter[B](fn: A => Option[B], msg: String = ""): ParseResult[B] =
+    def mapFilter[B](
+        fn: A => Option[B],
+        pos: Input,
+        msg: String = ""
+    ): ParseResult[B] =
       val res0 = res.mapFilter((a, rest) => fn(a).map(b => (b, rest)))
       if res0.isEmpty then
-        val inp = lastPos
-        Failure(ParseError.FilterError(msg), inp)
+        // val inp = lastPos
+        Failure(ParseError.FilterError(msg), pos)
       else Success(res0)
 
   }
@@ -106,10 +114,15 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
     def append[A >: Nothing](fa: ParseResult[A]): ParseResult[A]
 
-    def filter(fn: Nothing => Boolean, msg: String = ""): ParseResult[Nothing] =
+    def filter(
+        fn: Nothing => Boolean,
+        pos: Input,
+        msg: String = ""
+    ): ParseResult[Nothing] =
       this
     def mapFilter[B](
         fn: Nothing => Option[B],
+        pos: Input,
         msg: String = ""
     ): ParseResult[B] = this
   }
@@ -142,12 +155,12 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
       Parser(inp => parse(inp).map(fn))
     def ^^[B](fn: A => B): Parser[B] = map(fn)
 
-    def filter(fn: A => Boolean) = Parser { inp =>
-      parse(inp).filter(fn)
+    def withFilter(fn: A => Boolean) = Parser { inp =>
+      parse(inp).filter(fn, pos = inp)
     }
 
     def mapFilter[B](fn: A => Option[B]): Parser[B] = Parser { inp =>
-      parse(inp).mapFilter(fn)
+      parse(inp).mapFilter(fn, pos = inp)
     }
 
     def void: Parser[Unit] =
@@ -311,12 +324,15 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
   def combineK[A](fa: Parser[A], fb: Parser[A]): Parser[A] = fa.orElse(fb)
 
   def filter[A](fa: Parser[A])(fn: A => Boolean): Parser[A] =
-    fa.filter(fn)
+    fa.withFilter(fn)
 
   def mapFilter[A, B](fa: Parser[A])(fn: A => Option[B]): Parser[B] =
     fa.mapFilter(fn)
 
   def oneOf[A](ps: Iterable[Parser[A]]): Parser[A] =
+    ps.foldLeft(fail)(_.orElse(_))
+
+  def oneOf[A](ps: Parser[A]*): Parser[A] =
     ps.foldLeft(fail)(_.orElse(_))
 
   def pure[A](a: A): Parser[A] = Parser(inp => Success.pure(a, inp))
@@ -404,6 +420,13 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
   def anyExcept(es: Seq[Elem]): Parser[Elem] =
     accept(!es.contains(_))
+
+  def not[A](fa: Parser[A]): Parser[Elem] = Parser(inp =>
+    fa(inp) match
+      case Success(res)      => Failure(ParseError.Fail, inp)
+      case e: Error          => e
+      case Failure(err, inp) => elem(inp)
+  )
 
   def takeWhile(fn: Elem => Boolean): Parser[List[Elem]] = {
     repeated(accept(fn))

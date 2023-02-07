@@ -14,10 +14,8 @@ enum Binop:
 enum Relop:
   case RELOP_Eq, RELOP_Ne, RELOP_Lt, RELOP_Gt, RELOP_Le, RELOP_Ge
 
-
 enum Unop:
   case UNOP_Not, UNOP_Neg
-
 
 enum TypeExpression:
   case TEXPR_Id(id: Identifier)
@@ -28,11 +26,10 @@ enum TypeExpression:
 
 case class FieldType(name: Identifier, tpe: TypeExpression)
 
-
 enum Expression:
   case EXPR_Id(id: Identifier)
   case EXPR_Int(i: Int)
-  case EXPR_Char(c: Char)
+  case EXPR_Char(c: scala.Char)
   case EXPR_String(str: String)
   case EXPR_Bool(b: Boolean)
   case EXPR_Length(e: Expression)
@@ -44,12 +41,11 @@ enum Expression:
   case EXPR_Field(expr: Expression, field: Identifier)
   case EXPR_Unfold(expr: Expression)
   case EXPR_Array(exprs: List[Expression])
+  case EXPR_Record(exprs: List[FieldExpr])
+
   case EXPR_EmptyStruct
 
-
 case class FieldExpr(name: Identifier, value: Expression)
-
-
 
 case class VarDecl(id: Identifier, tpe: TypeExpression)
 
@@ -65,28 +61,26 @@ enum Statement:
   case STMT_ArrayDecl(
       id: Identifier,
       tp: TypeExpression,
-      sizes: List[Expression],
+      sizes: List[Expression]
   )
   case STMT_If(
       cond: Expression,
       then_branch: Statement,
-      else_branch: Option[Statement],
+      else_branch: Option[Statement]
   )
   case STMT_While(cond: Expression, body: Statement)
   case STMT_Return(expr: Option[Expression])
   case STMT_Block(stats: List[Statement])
 
-
-enum GlobalDefinition: 
+enum GlobalDefinition:
   case GDEF_Use(id: Identifier)
   case GDEF_Type(id: Identifier, body: TypeExpression)
   case GDEF_Function(
       id: Identifier,
       formal_parameters: List[VarDecl],
       return_type: Option[TypeExpression],
-      body: Statement,
+      body: Statement
   )
-
 
 enum GlobalDeclaration:
   case GDECL_Type(id: Identifier, body: TypeExpression)
@@ -94,9 +88,9 @@ enum GlobalDeclaration:
   case GDECL_Function(
       id: Identifier,
       formal_parameters: List[VarDecl],
-      return_type: Option[TypeExpression],
+      return_type: Option[TypeExpression]
   )
 
 case class ModuleDefinition(global_definitions: List[GlobalDefinition])
 
-case class ModuleInterface(global_declarations: List[GlobalDefinition])
+case class ModuleInterface(global_declarations: List[GlobalDeclaration])
