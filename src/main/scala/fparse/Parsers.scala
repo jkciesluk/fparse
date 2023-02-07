@@ -144,7 +144,7 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
   type Label = String
 
-  class Parser[+A](parse0: Input => ParseResult[A]) {
+  protected class Parser[+A](parse0: Input => ParseResult[A]) {
 
     def parse(inp: Input): ParseResult[A] = parse0(inp)
     def apply(inp: Input) = parse(inp)
@@ -289,61 +289,67 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
 
   }
 
-  def elem: Parser[Elem] = Parser(inp =>
+  protected def elem: Parser[Elem] = Parser(inp =>
     if inp.isEmpty then Failure(ParseError.UnexpectedEof, inp)
     else Success(Monad[F].pure((inp.first, inp.next))),
   )
 
-  def eof: Parser[Unit] = Parser(inp =>
+  protected def eof: Parser[Unit] = Parser(inp =>
     if inp.isEmpty then Success(Monad[F].pure(((), inp)))
     else Failure(ParseError.ExpectedEof, inp)
   )
   val Rip: Parser[Nothing] = Parser(inp => Error("Rip", Some(inp)))
   val Fail: Parser[Nothing] = Parser(inp => Failure(ParseError.Fail, inp))
-  def ap[A, B](ff: Parser[A => B])(fa: Parser[A]): Parser[B] =
+  protected def ap[A, B](ff: Parser[A => B])(fa: Parser[A]): Parser[B] =
     ff.flatMap(ab => fa.map(ab(_)))
-  def <*>[A, B](ff: => Parser[A => B])(fa: Parser[A]): Parser[B] = ap(ff)(fa)
-  def fail[A]: Parser[A] = Fail
-  def rip[A]: Parser[A] = Rip
+  protected def <*>[A, B](ff: => Parser[A => B])(fa: Parser[A]): Parser[B] =
+    ap(ff)(fa)
+  protected def fail[A]: Parser[A] = Fail
+  protected def rip[A]: Parser[A] = Rip
 
-  def select[A, B](fa: Parser[Either[A, B]])(fn: Parser[A => B]): Parser[B] =
+  protected def select[A, B](
+      fa: Parser[Either[A, B]]
+  )(fn: Parser[A => B]): Parser[B] =
     fa.flatMap {
       case Left(a)          => fa *> fn.map(_(a))
       case r @ Right(value) => pure(value)
     }
 
-  def map[A, B](fa: Parser[A])(fn: A => B) =
+  protected def map[A, B](fa: Parser[A])(fn: A => B) =
     fa.map(fn)
 
-  def lift[A, B](f: A => B): Parser[A] => Parser[B] =
+  protected def lift[A, B](f: A => B): Parser[A] => Parser[B] =
     fa => fa.map(f)
 
-  def lift2[A, B, C](f: A => B => C)(fa: Parser[A])(fb: Parser[B]): Parser[C] =
+  protected def lift2[A, B, C](f: A => B => C)(fa: Parser[A])(
+      fb: Parser[B]
+  ): Parser[C] =
     ap(ap(pure(f))(fa))(fb)
 
-  def combineK[A](fa: Parser[A], fb: Parser[A]): Parser[A] = fa.orElse(fb)
+  protected def combineK[A](fa: Parser[A], fb: Parser[A]): Parser[A] =
+    fa.orElse(fb)
 
-  def filter[A](fa: Parser[A])(fn: A => Boolean): Parser[A] =
+  protected def filter[A](fa: Parser[A])(fn: A => Boolean): Parser[A] =
     fa.withFilter(fn)
 
-  def mapFilter[A, B](fa: Parser[A])(fn: A => Option[B]): Parser[B] =
+  protected def mapFilter[A, B](fa: Parser[A])(fn: A => Option[B]): Parser[B] =
     fa.mapFilter(fn)
 
-  def oneOf[A](ps: Iterable[Parser[A]]): Parser[A] =
+  protected def oneOf[A](ps: Iterable[Parser[A]]): Parser[A] =
     ps.foldLeft(fail)(_.orElse(_))
 
-  def oneOf[A](ps: Parser[A]*): Parser[A] =
+  protected def oneOf[A](ps: Parser[A]*): Parser[A] =
     ps.foldLeft(fail)(_.orElse(_))
 
-  def pure[A](a: A): Parser[A] = Parser(inp => Success.pure(a, inp))
+  protected def pure[A](a: A): Parser[A] = Parser(inp => Success.pure(a, inp))
 
-  def flatMap[A, B](fa: Parser[A])(fn: A => Parser[B]): Parser[B] =
+  protected def flatMap[A, B](fa: Parser[A])(fn: A => Parser[B]): Parser[B] =
     fa.flatMap(fn)
 
-  def empty[A]: Parser[A] =
+  protected def empty[A]: Parser[A] =
     Parser(inp => Failure(ParseError.Fail, inp))
 
-  def sequence[A](ps: List[Parser[A]]): Parser[List[A]] = {
+  protected def sequence[A](ps: List[Parser[A]]): Parser[List[A]] = {
     def cons(a: A)(xs: List[A]) = (a :: xs)
     def consP(fa: Parser[A])(fxs: Parser[List[A]]) = lift2(cons)(fa)(fxs)
     val seqParser: Parser[List[A]] = ps match {
@@ -354,110 +360,126 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     seqParser
   }
 
-  def repeated[A](fa: Parser[A]): Parser[List[A]] =
+  protected def repeated[A](fa: Parser[A]): Parser[List[A]] =
     fa.repeated
 
-  def repeatedOne[A](fa: Parser[A]): Parser[List[A]] =
+  protected def repeatedOne[A](fa: Parser[A]): Parser[List[A]] =
     fa.repeatedOne
 
-  def repeatedLzy[A](fa: Parser[A]): Parser[List[A]] =
+  protected def repeatedLzy[A](fa: Parser[A]): Parser[List[A]] =
     fa.repeatedLzy
 
-  def repeatedOneLzy[A](fa: Parser[A]): Parser[List[A]] =
+  protected def repeatedOneLzy[A](fa: Parser[A]): Parser[List[A]] =
     fa.repeatedOneLzy
 
-  def repeatedN[A](fa: Parser[A])(n: Int): Parser[List[A]] =
+  protected def repeatedN[A](fa: Parser[A])(n: Int): Parser[List[A]] =
     fa.repeatedN(n)
 
-  def repeatedMaxN[A](fa: Parser[A])(n: Int): Parser[List[A]] =
+  protected def repeatedMaxN[A](fa: Parser[A])(n: Int): Parser[List[A]] =
     fa.repeatedMaxN(n)
 
-  def repeatedMinN[A](
+  protected def repeatedMinN[A](
       fa: Parser[A]
   )(n: Int, m: Option[Int] = None): Parser[List[A]] =
     fa.repeatedMinN(n, m)
 
-  def repeatedMaxNLzy[A](fa: Parser[A])(n: Int): Parser[List[A]] =
+  protected def repeatedMaxNLzy[A](fa: Parser[A])(n: Int): Parser[List[A]] =
     fa.repeatedMaxNLzy(n)
 
-  def repeatedMinNLzy[A](
+  protected def repeatedMinNLzy[A](
       fa: Parser[A]
   )(n: Int, m: Option[Int] = None): Parser[List[A]] =
     fa.repeatedMinNLzy(n, m)
 
-  def accept(e: Elem): Parser[Elem] =
+  protected def accept(e: Elem): Parser[Elem] =
     Parser { inp =>
       if (inp.isEmpty) Failure(ParseError.UnexpectedEof, inp)
       else if (inp.first == e) Success.pure(inp.first, inp.next)
       else Failure(ParseError.UnexpectedChar(inp.first), inp)
     }
 
-  def accept(fn: Elem => Boolean): Parser[Elem] =
+  protected def accept(fn: Elem => Boolean): Parser[Elem] =
     Parser { inp =>
       if (inp.isEmpty) Failure(ParseError.UnexpectedEof, inp)
       else if (fn(inp.first)) Success.pure(inp.first, inp.next)
       else Failure(ParseError.UnexpectedChar(inp.first), inp)
     }
 
-  def accept[A](fn: PartialFunction[Elem, A]): Parser[A] =
+  protected def accept[A](fn: PartialFunction[Elem, A]): Parser[A] =
     Parser { inp =>
       if (inp.isEmpty) Failure(ParseError.UnexpectedEof, inp)
       else if (fn.isDefinedAt(inp.first)) Success.pure(fn(inp.first), inp.next)
       else Failure(ParseError.UnexpectedChar(inp.first), inp)
     }
 
-  def anyOf(es: Set[Elem]): Parser[Elem] =
+  protected def anyOf(es: Set[Elem]): Parser[Elem] =
     oneOf(es.map(accept))
 
-  def anyOf(es: Seq[Elem]): Parser[Elem] =
+  protected def anyOf(es: Seq[Elem]): Parser[Elem] =
     oneOf(es.map(accept))
 
-  def anyExcept(es: Set[Elem]): Parser[Elem] =
+  protected def anyExcept(es: Set[Elem]): Parser[Elem] =
     accept(!es.contains(_))
 
-  def anyExcept(e: Elem): Parser[Elem] =
+  protected def anyExcept(e: Elem): Parser[Elem] =
     accept(e != _)
 
-  def anyExcept(es: Seq[Elem]): Parser[Elem] =
+  protected def anyExcept(es: Seq[Elem]): Parser[Elem] =
     accept(!es.contains(_))
 
-  def not[A](fa: Parser[A]): Parser[Elem] = Parser(inp =>
+  protected def not[A](fa: Parser[A]): Parser[Elem] = Parser(inp =>
     fa(inp) match
       case Success(res)      => Failure(ParseError.Fail, inp)
       case e: Error          => e
       case Failure(err, inp) => elem(inp)
   )
 
-  def takeWhile(fn: Elem => Boolean): Parser[List[Elem]] = {
+  protected def takeWhile(fn: Elem => Boolean): Parser[List[Elem]] = {
     repeated(accept(fn))
   }
 
-  def opt[A](fa: Parser[A]): Parser[Option[A]] =
+  protected def opt[A](fa: Parser[A]): Parser[Option[A]] =
     fa.map(Some(_)) <|> pure(None)
 
-  def between[A, B, C](fa: Parser[A], fb: Parser[B], fc: Parser[C]): Parser[B] =
+  protected def between[A, B, C](
+      fa: Parser[A],
+      fb: Parser[B],
+      fc: Parser[C]
+  ): Parser[B] =
     fa *> fb <* fc
 
-  def between[A, B](fa: Parser[A], fb: Parser[B]): Parser[B] =
+  protected def between[A, B](fa: Parser[A], fb: Parser[B]): Parser[B] =
     fa *> fb <* fa
 
-  def separatedOne[A, B](fa: Parser[A], sep: Parser[B]): Parser[List[A]] =
+  protected def separatedOne[A, B](
+      fa: Parser[A],
+      sep: Parser[B]
+  ): Parser[List[A]] =
     fa.separatedOne(sep)
 
-  def separated[A, B](fa: Parser[A], sep: Parser[B]): Parser[List[A]] =
+  protected def separated[A, B](
+      fa: Parser[A],
+      sep: Parser[B]
+  ): Parser[List[A]] =
     fa.separated(sep)
 
-  def separatedOneLzy[A, B](fa: Parser[A], sep: Parser[B]): Parser[List[A]] =
+  protected def separatedOneLzy[A, B](
+      fa: Parser[A],
+      sep: Parser[B]
+  ): Parser[List[A]] =
     fa.separatedOneLzy(sep)
 
-  def separatedLzy[A, B](fa: Parser[A], sep: Parser[B]): Parser[List[A]] =
+  protected def separatedLzy[A, B](
+      fa: Parser[A],
+      sep: Parser[B]
+  ): Parser[List[A]] =
     fa.separatedLzy(sep)
 
-  def whitespace: Parser[List[Char]] = Fail
+  protected def whitespace: Parser[List[Char]] = Fail
 
-  def optWhitespace: Parser[List[Char]] = pure(Nil)
+  protected def optWhitespace: Parser[List[Char]] = pure(Nil)
 
-  def withOptWhitespace[A](fa: Parser[A]) = fa
+  protected def withOptWhitespace[A](fa: Parser[A]) = fa
 
   implicit val catsInstanceParser
       : Monad[Parser] with Alternative[Parser] with FunctorFilter[Parser] =
