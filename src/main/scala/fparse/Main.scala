@@ -7,7 +7,6 @@ import fparse.string.RegexParser
 import fparse.example.Lexer
 import fparse.example.{Parser => ZiParser}
 
-
 object Main extends App {
   val input = """|[
                  |	{

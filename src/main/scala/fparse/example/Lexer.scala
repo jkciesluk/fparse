@@ -101,9 +101,8 @@ object Lexer extends RegexParsers {
   // def tokenize(inp: String): ParseResult[List[Token]] = tokenize(makeInput(inp))
 
   def getTokens(inp: Input): List[Token] = tokenize(inp) match
-    case Success(res)      => res.get._1
-    case Error(msg, inp)   => throw Exception(msg)
-    case Failure(err, inp) => throw Exception("lexer failure")
+    case Success(res) => res.get._1
+    case e            => throw Exception(e.toString())
 
   def getTokens(inp: String): List[Token] = getTokens(makeInput(inp))
 

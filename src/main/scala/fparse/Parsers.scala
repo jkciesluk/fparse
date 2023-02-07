@@ -130,6 +130,10 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
   case class Error(msg: String, inp: Option[Input])
       extends NoSuccess(ParseError.Rip) {
     def append[A >: Nothing](fa: ParseResult[A]): ParseResult[A] = this
+    override def toString(): String =
+      "Error: " + msg + s", ${ParseError.Rip}" + inp
+        .map("\n On input: " + _)
+        .getOrElse("")
   }
 
   case class Failure(err: ParseError, inp: Input) extends NoSuccess(err) {
@@ -140,6 +144,8 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
       case e: Error   => e
 
     def pos = inp.pos
+    override def toString(): String = "Failure: " + err + "\n On input: " + inp
+
   }
 
   type Label = String
@@ -283,9 +289,8 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
     )
 
     def run(inp: Input): A = (this <* eof).parse(inp) match
-      case Success(res)      => res.find(_ => true).get._1
-      case Error(msg, _)     => throw Exception(msg)
-      case Failure(err, inp) => throw Exception(err.toString())
+      case Success(res) => res.find(_ => true).get._1
+      case e            => throw Exception(e.toString())
 
   }
 
