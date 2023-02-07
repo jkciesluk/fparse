@@ -63,8 +63,8 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
             res.combineK(res0.asInstanceOf[F[(A, Input)]]),
             pickLastFailure(this.lastFailure, s.lastFailure)
           )
-        case Error(msg, _)     => this
-        case Failure(err, inp) => this
+        case err @ Error(msg, _) => err
+        case Failure(err, inp)   => this
 
     def filter(fn: A => Boolean, pos: Input, msg: String = ""): ParseResult[A] =
       val res0 = res.filter((a, _) => fn(a))
@@ -202,7 +202,6 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
           Success.emptyList(inp, Some(f))
         case s @ Success(res) =>
           val nextRes = s.flatMapNext((a, rest) => repeated.map(a :: _)(rest))
-          // val app = s.map(a => List(a))
           nextRes.append(Success.emptyList(inp))
     )
 
@@ -223,7 +222,6 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
         case s @ Success(res) =>
           val nextRes =
             s.flatMapNext((a, rest) => repeatedLzy.map(a :: _)(rest))
-          // val app = s.map(a => List(a))
           Success.emptyList(inp).append(nextRes)
     )
 
@@ -522,7 +520,6 @@ trait Parsers[F[_]: Monad: Alternative: Foldable: FunctorFilter] {
         fa.flatMap(f)
     }
 
-  // }
   object Parser {
     def apply(e: Elem) = accept(e)
     def apply[A](p: Input => ParseResult[A]) = new Parser(p)

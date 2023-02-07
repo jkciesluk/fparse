@@ -2,7 +2,7 @@ package fparse.example
 
 import fparse.positions.StringPosition
 
-trait Token
+sealed trait Token
 enum Keyword extends Token:
   case NOT, TRUE, FALSE, BOOL, ELSE, IF, LENGTH, RETURN, TYPE, USE, WHILE, OR,
     AND, INT

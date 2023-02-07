@@ -22,9 +22,6 @@ object Lexer extends RegexParsers {
     "and" -> Keyword.AND,
     "int" -> Keyword.INT
   )
-  // private val parseKeyword: Parser[Keyword] =
-  // val keywords = keywordMap.keys.map(accept(_).map(keywordMap(_))).toList
-  // oneOf(keywords)
 
   private val parseTk =
     oneOf(
@@ -73,8 +70,7 @@ object Lexer extends RegexParsers {
   } yield Quote(str)
 
   private val identifierRegex: String =
-    "(_|[a-z]|[A-Z])(_|[A-Z]|[a-z]|[0-9]|')*" // trzeba bedzie zrobic tak jak w ocamlu, identifier to moze byc keyword
-    // number parsowac z identifier.? i jak ident nonEmpty to odrzucac
+    "(_|[a-z]|[A-Z])(_|[A-Z]|[a-z]|[0-9]|')*"
 
   private val parseIdent: Parser[Token] =
     fromRegex(identifierRegex).map(ident =>
@@ -97,8 +93,6 @@ object Lexer extends RegexParsers {
 
   def tokenize(inp: Input): ParseResult[List[Token]] =
     tokenizer(inp)
-
-  // def tokenize(inp: String): ParseResult[List[Token]] = tokenize(makeInput(inp))
 
   def getTokens(inp: Input): List[Token] = tokenize(inp) match
     case Success(res) => res.get._1

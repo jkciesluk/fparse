@@ -3,7 +3,6 @@ package fparse.reader
 import java.io.File
 import scala.io.Source
 
-// import fparse.reader.InputReader
 import fparse.positions.StringPosition
 class CharReader(source: String, val pos: StringPosition)
     extends InputReader[Char] {

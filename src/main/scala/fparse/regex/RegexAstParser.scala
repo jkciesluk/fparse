@@ -70,12 +70,6 @@ object RegexAstParser extends StringParsers[Option] {
     }
   }
 
-  // private def parseOr: Parser[URegex] = for {
-  //     left <- parseRegex
-  //     _ <- Parser('|')
-  //     right <- parseRegex
-  // } yield Or(left, right)
-
   private def parseUnquantified: Parser[URegex] =
     oneOf(List(parseGroup, parseAnyOf, parseSingle))
 

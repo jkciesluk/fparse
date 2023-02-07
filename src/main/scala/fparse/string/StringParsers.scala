@@ -7,13 +7,12 @@ import cats.Alternative
 
 trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
   type Elem = Char
-  // type Input = CharReader
   val whitespaces = Set(' ', '\t', '\r', '\n')
   def makeInput(str: String) = CharReader.fromString(str)
 
+  // NOTE: Maybe implicit conversions aren't that
   // given Conversion[Char, Parser[Char]] = Parser.accept(_)
   // given Conversion[String, Parser[String]] with
-  // def apply(str: String): Parser[String] = Parser.sequence(str.toList.map(Parser.accept)).map(_.mkString)
 
   def digit: Parser[Char] = anyOf("0123456789".toList)
 
@@ -24,8 +23,6 @@ trait StringParsers[F[_]: Monad: Alternative] extends Parsers[F] {
   def int: Parser[Int] = {
     (opt(Parser('-')) ~ natural).map((minus, n) => minus.fold(n)(_ => -n))
   }
-  def int(i: Int): Parser[Int] = ???
-  // int.filter(_ == i)
 
   def double: Parser[Double] = for {
     n <- repeatedOne(digit)
